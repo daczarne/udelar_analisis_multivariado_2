@@ -1,0 +1,675 @@
+---
+title: "Statistical Learning"
+subtitle: "Chapter 2 - Exercise 10"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+    transform: scale(1.5);
+    transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+### Part a
+
+> To begin, load in the Boston data set. The Boston data set is part of the MASS library in R. How many rows are in this data set? How many columns? What do the rows and columns represent?
+
+```{r}
+boston <- MASS::Boston %>% 
+  dplyr::mutate(
+    dplyr::across(
+      .cols = base::c("chas", "rad"),
+      .fns = ~forcats::as_factor(.x)
+    )
+  )
+```
+
+The `Boston` data set contains `r base::dim(boston)[1]` observations (rows) and `r base::dim(boston)[2]` predictors (columns) for *Housing values in suburbs of Boston*. Each row represents a town. The columns are:
+
+1. `crim`: per capita crime rate by town.
+1. `zn`: proportion of residential land zoned for lots over 25,000 sq.ft.
+1. `indus`: proportion of non-retail business acres per town.
+1. `chas`: Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+1. `nox`: nitrogen oxides concentration (parts per 10 million).
+1. `rm`: average number of rooms per dwelling.
+1. `age`: proportion of owner-occupied units built prior to 1940.
+1. `dis`: weighted mean of distances to five Boston employment centers.
+1. `rad`: index of accessibility to radial highways.
+1. `tax`: full-value property-tax rate per \$10,000.
+1. `ptratio`: pupil-teacher ratio by town.
+1. `black`: $1000(Bk - 0.63)^2$ where Bk is the proportion of blacks by town.
+1. `lstat`: lower status of the population (percent).
+1. `medv`: median value of owner-occupied homes in \$1000s.
+
+```{r, echo=FALSE}
+boston %>% 
+  DT::datatable() %>% 
+  DT::formatRound(
+    columns = base::c(
+      "crim",
+      "indus",
+      "nox",
+      "rm",
+      "age",
+      "dis",
+      "ptratio",
+      "black",
+      "lstat",
+      "medv"
+    )
+  )
+```
+
+### Part b
+
+> Make some pairwise scatterplots of the predictors (columns) in this data set. Describe your findings.
+
+```{r, fig.align='center', out.width='100%'}
+GGally::ggpairs(
+  data = boston,
+  progress = FALSE,
+  lower = base::list(
+    continuous = GGally::wrap(
+      funcVal = "points",
+      alpha = 0.1,
+      size = .5
+    ),
+    combo = GGally::wrap(
+      funcVal = "dot",
+      alpha = 0.1,
+      size = .5
+    )
+  ),
+  upper = base::list(
+    continuous = GGally::wrap(
+      funcVal = "cor",
+      size = 2
+    )
+  )
+) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+<br>
+<br>
+<br>
+
+Relationships between variables in the data set seem to be non-linear.
+
+### Part c
+
+> Are any of the predictors associated with per capita crime rate? If so, explain the relationship.
+
+```{r}
+corr_data <- boston %>%
+  dplyr::mutate(
+    dplyr::across(
+      .fns = ~base::as.numeric(base::as.character(.x))
+    )
+  ) %>%
+  stats::cor()
+```
+
+```{r}
+plotly::plot_ly() %>% 
+  plotly::add_trace(
+    x = base::row.names(corr_data),
+    y = base::row.names(corr_data),
+    z = base::as.matrix(corr_data),
+    colors = "RdYlGn",
+    type = "heatmap",
+    hovertemplate = "<b>X var:</b> %{x}<br><b>Y var:</b> %{y}<br><b>Correlation:</b> %{z:.2r}<extra></extra>"
+  ) %>%
+  plotly::layout(
+    title = "<b>Correlations</b>",
+    xaxis = base::list(
+      title = NA
+    ),
+    yaxis = base::list(
+      title = NA
+    ),
+    paper_bgcolor = "#f5f5f5",
+    plot_bgcolor = "#f5f5f5"
+  ) %>% 
+  plotly::colorbar(
+    len = 1
+  ) %>% 
+  plotly::config(
+    displayModeBar = FALSE
+  )
+```
+
+`crim` has a positive correlation mainly with `rad`, and `tax`. There seems to be no correlation between `crim` and `chas`.
+
+### Part d
+
+> Do any of the suburbs of Boston appear to have particularly high crime rates? Tax rates? Pupil-teacher ratios? Comment on the range of each predictor.
+
+```{r, fig.align='center', out.width='100%'}
+boston %>% 
+  dplyr::select(
+    crim,
+    tax,
+    ptratio
+  ) %>% 
+  tidyr::pivot_longer(
+    cols = dplyr::everything(),
+    names_to = "variable",
+    values_to = "values"
+  ) %>% 
+  dplyr::mutate(
+    variable = forcats::as_factor(variable)
+  ) %>%
+  ggplot2::ggplot() +
+  ggplot2::geom_boxplot(
+    ggplot2::aes(
+      y = values,
+      color = variable
+    ),
+    show.legend = FALSE
+  ) +
+  ggplot2::facet_wrap(
+    facets = ~variable,
+    scales = "free_y"
+  ) + 
+  ggplot2::labs(
+    y = NULL
+  ) +
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank(),
+    axis.ticks.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+As shown by the `crim` boxplot, some of the Boston towns do have an unusually high level of crime. On the other hand, some have an unusually low level of teachers per pupil (`ptratio` variable). Interestingly, there does not appear to be any town paying neither an unusually high nor unusually low level of taxes (`tax` variable).
+
+```{r, fig.align='center', out.width='100%'}
+boston %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_histogram(
+    ggplot2::aes(crim),
+    binwidth = 1
+  ) + 
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+### Part e
+
+> How many of the suburbs in this data set bound the Charles river?
+
+```{r}
+boston %>% 
+  dplyr::group_by(
+    chas
+  ) %>% 
+  dplyr::summarise(
+    amount = dplyr::n(),
+    .groups = "drop_last"
+  ) %>%
+  dplyr::mutate(
+    proportion = amount / base::sum(amount, na.rm = TRUE)
+  ) %>% 
+  knitr::kable(
+    format = "html",
+    digits = 2,
+    align = "ccc"
+  ) %>% 
+  kableExtra::kable_styling(
+    bootstrap_options = base::c("hover", "strip")
+  )
+```
+
+### Part f
+
+> What is the median pupil-teacher ratio among the towns in this data set?
+
+Median pupil-teacher ratio is `r stats::median(boston$ptratio)`.
+
+### Part g
+
+> Which suburb of Boston has lowest median value of owner occupied homes? What are the values of the other predictors for that suburb, and how do those values compare to the overall ranges for those predictors? Comment on your findings.
+
+```{r}
+min_vals <- boston %>% 
+  dplyr::filter(
+    medv == base::min(boston$medv)
+  ) %>% 
+  dplyr::mutate(
+    dplyr::across(
+      .cols = dplyr::everything(),
+      .fns = ~base::as.numeric(base::as.character(.x))
+    )
+  ) %>%
+  dplyr::mutate(
+    obs = dplyr::row_number()
+  ) %>% 
+  tidyr::pivot_longer(
+    cols = !obs,
+    names_to = "variable",
+    values_to = "values"
+  ) %>% 
+  dplyr::mutate(
+    variable = forcats::as_factor(variable),
+    obs = forcats::as_factor(obs)
+  )
+```
+
+```{r}
+plot_data <- boston %>% 
+  dplyr::mutate(
+    dplyr::across(
+      .cols = dplyr::everything(),
+      .fns = ~base::as.numeric(base::as.character(.x))
+    )
+  ) %>% 
+  tidyr::pivot_longer(
+    cols = dplyr::everything(),
+    names_to = "variable",
+    values_to = "values"
+  ) %>% 
+  dplyr::mutate(
+    variable = forcats::as_factor(variable)
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+plot_data %>% 
+  dplyr::filter(
+    !(variable %in% base::c("rad", "chas"))
+  ) %>% 
+  base::droplevels() %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_boxplot(
+    ggplot2::aes(
+      x = variable,
+      y = values
+    ),
+    show.legend = FALSE
+  ) +
+  ggplot2::geom_point(
+    data = dplyr::filter(min_vals, !(variable %in% base::c("rad", "chas"))),
+    ggplot2::aes(
+      x = variable,
+      y = values,
+      color = obs
+    ), 
+    show.legend = FALSE
+  ) +
+  ggplot2::facet_wrap(
+    facets = ~variable,
+    scales = "free"
+  ) +
+  ggplot2::labs(
+    y = NULL
+  ) + 
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank(),
+    axis.ticks.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+plot_data %>% 
+  dplyr::filter(
+    variable %in% base::c("rad", "chas")
+  ) %>% 
+  base::droplevels() %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_bar(
+    ggplot2::aes(
+      x = values,
+      y = ..count.. / base::sum(..count.., na.rm = TRUE)
+    )
+  ) + 
+  ggplot2::geom_point(
+    data = (
+      min_vals %>% 
+        dplyr::filter(
+          variable %in% base::c("rad", "chas")
+        ) %>% 
+        dplyr::group_by(
+          variable,
+          values
+        ) %>% 
+        dplyr::summarise(
+          n_size = dplyr::n(),
+          .groups = "drop"
+        )
+    ),
+    ggplot2::aes(
+      x = values, 
+      y = 0,
+      size = n_size
+    ),
+    color = "dodgerblue",
+    show.legend = FALSE
+  ) + 
+  ggplot2::facet_wrap(
+    facets = ~variable,
+    scales = "free"
+  ) +
+  ggplot2::labs(
+    y = NULL
+  ) +
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+### Part h
+
+> In this data set, how many of the suburbs average more than seven rooms per dwelling? More than eight rooms per dwelling? Comment on the suburbs that average more than eight rooms per dwelling.
+
+```{r}
+avg_rooms_data <- function(menor_que) {
+  
+  boston[boston$rm > base::as.integer(menor_que), ] %>% 
+    dplyr::mutate(
+      dplyr::across(
+        .cols = dplyr::everything(),
+        .fns = ~base::as.numeric(base::as.character(.x))
+      )
+    ) %>% 
+    dplyr::mutate(
+      obs = dplyr::row_number()
+    ) %>% 
+    tidyr::pivot_longer(
+      cols = !obs,
+      names_to = "variable",
+      values_to = "values"
+    ) %>% 
+    dplyr::mutate(
+      variable = forcats::as_factor(variable),
+      obs = forcats::as_factor(obs)
+    )
+  
+}
+```
+
+```{r, fig.align='center', out.width='100%'}
+plot_data <- avg_rooms_data(7)
+
+plot_data %>% 
+  dplyr::filter(
+    !(variable %in% base::c("rad", "chas"))
+  ) %>%
+  base::droplevels() %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_boxplot(
+    ggplot2::aes(
+      x = variable,
+      y = values
+    ),
+    show.legend = FALSE
+  ) +
+  ggplot2::geom_jitter(
+    data = dplyr::filter(plot_data, !(variable %in% base::c("rad", "chas"))),
+    ggplot2::aes(
+      x = variable,
+      y = values
+    ),
+    alpha = 1/3,
+    color = "dodgerblue",
+    show.legend = FALSE
+  ) +
+  ggplot2::facet_wrap(
+    facets = ~variable,
+    scales = "free"
+  ) +
+  ggplot2::labs(
+    y = NULL
+  ) +
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank(),
+    axis.ticks.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='50%'}
+boston %>% 
+  dplyr::filter(
+    rm > 7
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_bar(
+    ggplot2::aes(
+      x = rad,
+      y = ..count.. / base::sum(..count.., na.rm = TRUE)
+    )
+  ) +
+  ggplot2::labs(
+    y = NULL,
+    title = "Bar chart of rad",
+    subtitle = "Suburbs with rm greater than 7"
+  ) + 
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+
+boston %>% 
+  dplyr::filter(
+    rm > 7
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_bar(
+    ggplot2::aes(
+      x = chas,
+      y = ..count.. / base::sum(..count.., na.rm = TRUE)
+    )
+  ) +
+  ggplot2::labs(
+    y = NULL,
+    title = "Bar chart of chas",
+    subtitle = "Suburbs with rm greater than 7"
+  ) + 
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+plot_data <- avg_rooms_data(8)
+
+plot_data %>% 
+  dplyr::filter(
+    !(variable %in% base::c("rad", "chas"))
+  ) %>%
+  base::droplevels() %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_boxplot(
+    ggplot2::aes(
+      x = variable,
+      y = values
+    ),
+    show.legend = FALSE
+  ) +
+  ggplot2::geom_jitter(
+    data = dplyr::filter(plot_data, !(variable %in% base::c("rad", "chas"))),
+    ggplot2::aes(
+      x = variable,
+      y = values
+    ),
+    alpha = 1/3,
+    color = "dodgerblue",
+    show.legend = FALSE
+  ) +
+  ggplot2::facet_wrap(
+    facets = ~variable,
+    scales = "free"
+  ) +
+  ggplot2::labs(
+    y = NULL
+  ) +
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    axis.text.x = ggplot2::element_blank(),
+    axis.ticks.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='50%'}
+boston %>% 
+  dplyr::filter(
+    rm > 8
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_bar(
+    ggplot2::aes(
+      x = rad,
+      y = ..count.. / base::sum(..count.., na.rm = TRUE)
+    )
+  ) +
+  ggplot2::labs(
+    y = NULL,
+    title = "Bar chart of rad",
+    subtitle = "Suburbs with rm greater than 8"
+  ) + 
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+
+boston %>% 
+  dplyr::filter(
+    rm > 8
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_bar(
+    ggplot2::aes(
+      x = chas,
+      y = ..count.. / base::sum(..count.., na.rm = TRUE)
+    )
+  ) +
+  ggplot2::labs(
+    y = NULL,
+    title = "Bar chart of rad",
+    subtitle = "Suburbs with rm greater than 8"
+  ) + 
+  ggplot2::theme(
+    axis.title.x = ggplot2::element_blank(),
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
