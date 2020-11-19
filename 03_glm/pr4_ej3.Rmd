@@ -3,7 +3,6 @@ title: "Práctico 4"
 subtitle: "Ejercicio 2"
 output: 
   html_document:
-    # css: style_notebook.css
     toc: true
     toc_float:
       collapsed: true
@@ -243,6 +242,7 @@ confusion_matrix[1,1] / (confusion_matrix[1,1] + confusion_matrix[1,2])
 ```{r}
 confusion_matrix[2,2] / (confusion_matrix[2,1] + confusion_matrix[2,2])
 ```
+
 Recordemos que:
 
 $$low_i = \left\{
@@ -388,5 +388,3 @@ base::summary(glm_fit4)
 ```{r}
 base::exp(stats::coef(glm_fit4)) / (1 + base::exp(stats::coef(glm_fit4)))
 ```
-
-
