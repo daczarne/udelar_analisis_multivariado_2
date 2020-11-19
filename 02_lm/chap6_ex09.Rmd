@@ -1,0 +1,325 @@
+---
+title: "Statistical Learning"
+subtitle: "Chapter 6 - Exercise 9"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: show
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+    transform: scale(1.5);
+    transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+> In this exercise, we will predict the number of applications received using the other variables in the `College` data set.
+
+```{r}
+college <- ISLR::College
+??ISLR::College
+```
+
+```{r}
+college %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_boxplot(
+    ggplot2::aes(
+      Apps
+    )
+  )
+```
+
+```{r}
+summary(college$Apps)
+```
+
+
+## Part a
+
+> Split the data set into a training set and a test set.
+
+```{r}
+base::set.seed(1234)
+train <- dplyr::slice_sample(college, prop = 0.6)
+test <- dplyr::anti_join(college, train)
+# dplyr::semi_join(train, test)
+```
+
+## Part b
+
+> Fit a linear model using least squares on the training set, and report the test error obtained.
+
+```{r}
+lm_fit <- stats::lm(Apps ~ ., data = train)
+```
+
+```{r}
+base:::summary(lm_fit)
+```
+
+```{r}
+test_error_lm <- base::mean((test$Apps - stats::predict(lm_fit, test))^2)
+test_error_lm
+```
+
+```{r}
+plot(lm_fit)
+```
+
+
+## Part c
+
+> Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained.
+
+```{r}
+ridge_fit <- glmnet::cv.glmnet(
+  x = stats::model.matrix(Apps ~ ., data = train)[, -1],
+  y = train$Apps,
+  alpha = 0
+)
+ridge_fit
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::tibble(
+    lambda = ridge_fit$lambda,
+    cvm = ridge_fit$cvm
+  ) %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = base::log(lambda),
+      y = cvm
+    )
+  ) +
+  ggplot2::labs(
+    x = base::expression(log(lambda)),
+    y = ridge_fit$name
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r}
+opt_lambda <- ridge_fit$lambda.min
+base::log(opt_lambda)
+```
+
+```{r}
+test_matrix <- stats::model.matrix(Apps ~ ., data = test)[, -1]
+test_error_ridge <- base::mean((test$Apps - stats::predict(ridge_fit, s = opt_lambda, newx = test_matrix))^2)
+test_error_ridge
+```
+
+```{r}
+test %>% 
+  dplyr::transmute(
+    Apps,
+    predicted_values = as.numeric(stats::predict(ridge_fit, s = opt_lambda, newx = test_matrix))
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      x = Apps,
+      y = predicted_values
+    ),
+    alpha = 1/3
+  )
+```
+
+## Part d
+
+> Fit a lasso model on the training set, with $\lambda$ chosen by crossvalidation. Report the test error obtained, along with the number of non-zero coefficient estimates.
+
+```{r}
+lasso_fit <- glmnet::cv.glmnet(
+  x = stats::model.matrix(Apps ~ ., data = train)[, -1],
+  y = train$Apps,
+  alpha = 1
+)
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::tibble(
+    lambda = lasso_fit$lambda,
+    cvm = lasso_fit$cvm
+  ) %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = base::log(lambda),
+      y = cvm
+    )
+  ) +
+  ggplot2::labs(
+    x = base::expression(log(lambda)),
+    y = ridge_fit$name
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::tibble(
+    lambda = lasso_fit$lambda,
+    nzero = lasso_fit$nzero
+  ) %>% 
+  ggplot2::ggplot() + 
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = base::log(lambda),
+      y = nzero
+    )
+  ) +
+  ggplot2::labs(
+    x = base::expression(log(lambda)),
+    y = "Non-zero coefficients"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r}
+opt_lambda <- lasso_fit$lambda.min
+base::log(opt_lambda)
+```
+
+```{r}
+test_matrix <- stats::model.matrix(Apps ~ ., data = test)[, -1]
+test_error_lasso <- base::mean((test$Apps - stats::predict(lasso_fit, s = opt_lambda, newx = test_matrix))^2)
+```
+
+```{r}
+stats::predict(lasso_fit, type = "coefficients", s = opt_lambda)
+```
+
+```{r}
+test %>% 
+  dplyr::transmute(
+    Apps,
+    predicted_values = as.numeric(stats::predict(lasso_fit, s = opt_lambda, newx = test_matrix))
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_point(
+    ggplot2::aes(
+      x = Apps,
+      y = predicted_values
+    ),
+    alpha = 1/3
+  )
+```
+
+## Test errors
+
+```{r, fig.align='center', out.width='100%'}
+tibble::tibble(
+  model = base::c("lm", "ridge", "lasso"),
+  test_error = base::c(test_error_lm, test_error_ridge, test_error_lasso)
+) %>% 
+  dplyr::mutate(
+    model = forcats::as_factor(model)
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_col(
+    ggplot2::aes(
+      x = model,
+      y = test_error
+    )
+  ) +
+  ggplot2::labs(
+    x = "Model",
+    y = "Test error"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```

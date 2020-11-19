@@ -1,0 +1,227 @@
+---
+title: "Statistical Learning"
+subtitle: "Chapter 3 - Exercise 15"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+    transform: scale(1.5);
+    transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+> This problem involves the `Boston` data set, which we saw in the lab for this chapter. We will now try to predict per capita crime rate using the other variables in this data set. In other words, per capita crime rate is the response, and the other variables are the predictors.
+
+```{r}
+boston <- MASS::Boston
+```
+
+## Part a
+
+> For each predictor, fit a simple linear regression model to predict the response. Describe your results. In which of the models is there a statistically significant association between the predictor and the response? Create some plots to back up your assertions.
+
+```{r}
+slr_data <- boston %>% 
+  tidyr::pivot_longer(
+    cols = -crim,
+    names_to = "predictor_name",
+    values_to = "predictor_value"
+  ) %>% 
+  dplyr::relocate(
+    predictor_name,
+    .before = tidyselect::everything()
+  ) %>% 
+  dplyr::group_by(
+    predictor_name
+  ) %>% 
+  tidyr::nest(
+    reg_data = base::c("crim", "predictor_value")
+  )
+```
+
+```{r}
+slr_data_simple <- slr_data %>% 
+  dplyr::mutate(
+    slr_fit = purrr::map(reg_data, ~stats::lm(crim ~ predictor_value, data = .x)),
+    b0_coef = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$estimate[[1]]),
+    b0_pval = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$p.value[[1]]),
+    b1_coef = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$estimate[[2]]),
+    b1_pval = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$p.value[[2]]),
+    b1_signif = dplyr::if_else(b1_pval < 0.01, TRUE, FALSE), 
+    r_sq = purrr::map_dbl(slr_fit, ~broom::glance(.x)$r.squared)
+  )
+```
+
+```{r}
+slr_data_simple
+```
+
+## Part b
+
+> Fit a multiple regression model to predict the response using all of the predictors. Describe your results. For which predictors can we reject the null hypothesis H0 : βj = 0?
+
+```{r}
+full_model_fit <- stats::lm(crim ~ ., data = boston)
+```
+
+```{r}
+base::summary(full_model_fit)
+```
+
+## Part c
+
+> How do your results from (a) compare to your results from (b)?
+
+Not all predictors that where significant in the SLR, resulted significant too on the MLR.
+
+> Create a plot displaying the univariate regression coefficients from (a) on the x-axis, and the multiple regression coefficients from (b) on the y-axis. That is, each predictor is displayed as a single point in the plot. Its coefficient in a simple linear regression model is shown on the x-axis, and its coefficient estimate in the multiple linear regression model is shown on the y-axis.
+
+```{r}
+broom::tidy(full_model_fit)
+```
+
+```{r}
+slr_data_simple %>% 
+  dplyr::left_join(
+    dplyr::select(broom::tidy(full_model_fit), predictor_name = term, beta = estimate) %>% dplyr::filter(predictor_name != "(Intercept)"),
+    by = "predictor_name"
+  ) %>% 
+  plotly::plot_ly() %>% 
+  plotly::add_trace(
+    x = ~b1_coef,
+    y = ~beta,
+    type = "scatter",
+    mode = "markers",
+    hovertemplate = ~base::paste0(
+      "<b>Predictor:</b> ",
+      predictor_name,
+      "<br>",
+      "<b>SLR coefficient:</b> ",
+      formattable::comma(
+        x = b1_coef,
+        digits = 3L
+      ),
+      "<br>",
+      "<b>MLR coefficient:</b> ",
+      formattable::comma(
+        x = beta,
+        digits = 3L
+      ),
+      "<extra></extra>"
+    )
+  ) %>% 
+  plotly::layout(
+    xaxis = base::list(
+      title = "<b>SLR coefficients</b>"
+    ),
+    yaxis = base::list(
+      title = "<b>MLR coefficients</b>"
+    ),
+    paper_bgcolor = "#f5f5f5",
+    plot_bgcolor = "#f5f5f5"
+  ) %>% 
+  plotly::config(
+    displayModeBar = FALSE
+  )
+```
+
+## Part d
+
+> Is there evidence of non-linear association between any of the predictors and the response? To answer this question, for each predictor X, fit a model of the form
+
+```{r}
+slr_data_poly <- slr_data %>% 
+  dplyr::filter(
+    predictor_name != "chas"
+  ) %>% 
+  dplyr::mutate(
+    slr_fit = purrr::map(reg_data, ~stats::lm(crim ~ stats::poly(predictor_value, degree = 3), data = .x)),
+    b1_coef = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$estimate[[2]]),
+    b1_signif = dplyr::if_else(purrr::map_dbl(slr_fit, ~broom::tidy(.x)$p.value[[2]]) < 0.01, TRUE, FALSE),
+    b2_coef = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$estimate[[3]]),
+    b2_signif = dplyr::if_else(purrr::map_dbl(slr_fit, ~broom::tidy(.x)$p.value[[3]]) < 0.01, TRUE, FALSE),
+    b3_coef = purrr::map_dbl(slr_fit, ~broom::tidy(.x)$estimate[[4]]),
+    b3_signif = dplyr::if_else(purrr::map_dbl(slr_fit, ~broom::tidy(.x)$p.value[[4]]) < 0.01, TRUE, FALSE),
+    r_sq = purrr::map_dbl(slr_fit, ~broom::glance(.x)$r.squared)
+  )
+```
+
+```{r}
+slr_data_poly
+```

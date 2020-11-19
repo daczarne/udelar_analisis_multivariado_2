@@ -1,0 +1,245 @@
+---
+title: "Statistical Learning"
+subtitle: "Chapter 3 - Exercise 10"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+    transform: scale(1.5);
+    transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+> This questions should be answered using the Carseats data set.
+
+```{r}
+car_seats <- ISLR::Carseats
+```
+
+```{r}
+SmartEDA::ExpData(car_seats, type = 1)
+```
+
+```{r}
+SmartEDA::ExpData(car_seats, type = 2)
+```
+
+```{r}
+base::table(car_seats$Education)
+```
+
+## Part a
+
+> Fit a multiple regression model to predict Sales using Price, Urban, and US.
+
+```{r}
+model1_fit <- stats::lm(Sales ~ Price + Urban + US, data = car_seats)
+```
+
+```{r}
+base::summary(model1_fit)
+```
+
+## Part b
+
+> Provide an interpretation of each coefficient in the model.
+
+```{r}
+var_price <- if(stats::coef(model1_fit)[["Price"]] < 0) "drop" else "raise"
+```
+
+- `Price` = `r stats::coef(model1_fit)[["Price"]]` indicates that sales will `r var_price`, on average, by `r base::abs(base::round(stats::coef(model1_fit)[["Price"]] * 1000))` units for every one dollar increase in their price (when holding `Urban` and `US` constant).
+
+```{r}
+var_urbanyes <- if(stats::coef(model1_fit)[["UrbanYes"]] < 0) "lower" else "higher"
+```
+
+- `UrbanYes` = `r stats::coef(model1_fit)[["UrbanYes"]]` indicates that sales are, on average, `r base::abs(base::round(stats::coef(model1_fit)[["UrbanYes"]] * 1000))` units `r var_urbanyes` for stores in urban areas, compared to stores in non-Urban areas (when holding `Price` and `US` constant).
+
+```{r}
+var_usyes <- if(stats::coef(model1_fit)[["USYes"]] < 0) "lower" else "higher"
+```
+
+- `USYes` = `r stats::coef(model1_fit)[["USYes"]]`indicates that sales are, on average, `r base::abs(base::round(stats::coef(model1_fit)[["USYes"]] * 1000))` units `r var_usyes` for stores in urban areas, compared to stores in non-Urban areas (when holding `Price` and `Urban` constant).
+
+## Part c
+
+> Write out the model in equation form, being careful to handle the qualitative variables properly.
+
+$$Sales = 13.04 - 0.05 * Price - 0.02 * \text{I}_{(Urban = Yes)} + 1.2 * \text{I}_{(US = Yes)}$$
+
+## Part d
+
+> For which of the predictors can you reject the null hypothesis $H_0: \beta_j = 0$
+
+Based on *p-vales* for `Price` and `US`.
+
+## Part e
+
+> On the basis of your response to the previous question, fit a smaller model that only uses the predictors for which there is evidence of association with the outcome.
+
+```{r}
+model2_fit <- stats::lm(Sales ~ Price + US, data = car_seats)
+```
+
+```{r}
+base::summary(model2_fit)
+```
+
+## Part f
+
+> How well do the models in (a) and (e) fit the data?
+
+Based on $RSE$ and $R^2$, both models provide a good fit. Yet, the model from part e is preferable since it has a slightly lower $RSE$ (`r base::round(base::summary(model2_fit)$sigma, 3)` for model e Vs. `r base::round(base::summary(model1_fit)$sigma, 3)` for model a), and one less predictor.
+
+## Part g
+
+> Using the model from (e), obtain 95% confidence intervals for the coefficient(s).
+
+```{r}
+stats::confint(model2_fit)
+```
+
+## Part h
+
+> Is there evidence of outliers or high leverage observations in the model from (e)?
+
+```{r}
+model2_fit_diagnose <- lindia::gg_diagnose(
+  fitted.lm = model2_fit,
+  plot.all = FALSE
+)
+```
+
+```{r, fig.align='center', out.width='100%'}
+model2_fit_diagnose$res_fitted +
+  ggplot2::geom_smooth(
+    se = FALSE
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+model2_fit_diagnose$scalelocation +
+  ggplot2::labs(
+    x = "Fitted Values",
+    y = "sqrt(std res)"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+model2_fit_diagnose$qqplot +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+model2_fit_diagnose$cooksd +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+model2_fit_diagnose$resleverage +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```

@@ -1,0 +1,217 @@
+---
+title: "Linear Regression"
+subtitle: "Chapter 3 - Exercise 8"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+  padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+    transform: scale(1.5);
+    transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+  border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+> This question involves the use of simple linear regression on the `Auto` data set.
+
+```{r}
+auto <- ISLR::Auto
+```
+
+## Part a
+
+> Use the `lm` function to perform a simple linear regression with mpg as the response and horsepower as the predictor. Use the `summary` function to print the results. Comment on the output.
+
+```{r}
+auto_fit <- stats::lm(mpg ~ horsepower, data = auto)
+```
+
+```{r}
+base::summary(auto_fit)
+```
+
+> i. Is there a relationship between the predictor and the response?
+
+Yes, since the coefficient is statistically significant
+
+> ii. How strong is the relationship between the predictor and the response?
+
+Very much so since de *p-value* is very close to zero
+
+> iii. Is the relationship between the predictor and the response positive or negative?
+
+$\hat{\beta_1} < 0$, therefore the relationship is negative
+
+> iv. What is the predicted mpg associated with a horsepower of 98? What are the associated 95% confidence and prediction intervals?
+
+```{r}
+stats::predict(auto_fit, tibble::tibble(horsepower = base::c(98)))
+```
+
+```{r}
+stats::predict(auto_fit, tibble::tibble(horsepower = base::c(98)), interval = "confidence")
+```
+
+## Part b
+
+```{r, fig.align='center', out.width='100%'}
+ggplot2::ggplot(
+  data = auto,
+  mapping = ggplot2::aes(
+    x = horsepower,
+    y = mpg
+  )
+) + 
+  ggplot2::geom_point() +
+  ggplot2::geom_smooth(
+    method = "lm",
+    se = FALSE
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Part c
+
+```{r}
+auto_fit_diagnose <- lindia::gg_diagnose(
+  fitted.lm = auto_fit,
+  plot.all = FALSE
+)
+```
+
+```{r, fig.align='center', out.width='100%'}
+auto_fit_diagnose$res_fitted +
+  ggplot2::geom_smooth(
+    se = FALSE
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+auto_fit_diagnose$scalelocation +
+  ggplot2::labs(
+    x = "Fitted Values",
+    y = "sqrt(std res)"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+auto_fit_diagnose$qqplot +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+auto_fit_diagnose$cooksd +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+auto_fit_diagnose$resleverage +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
