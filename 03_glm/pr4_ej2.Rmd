@@ -3,7 +3,6 @@ title: "Práctico 4"
 subtitle: "Ejercicio 2"
 output: 
   html_document:
-    # css: style_notebook.css
     toc: true
     toc_float:
       collapsed: true
@@ -94,7 +93,7 @@ library(magrittr)
 
 ```{r}
 melanoma <- readr::read_delim(
-  file = here::here("Class notebooks/melanoma.txt"),
+  file = here::here("03_glm/melanoma.txt"),
   delim = "\t",
   col_types = "cccc"
 ) %>% 
@@ -214,7 +213,7 @@ base::summary(
 ```
 
 ```{r}
-poisson_fit$deviance / poisson_fit$df.residual
+poisson_fit[["deviance"]] / poisson_fit[["df.residual"]]
 ```
 
 ## Parte c
@@ -226,7 +225,7 @@ poisson_fit$deviance / poisson_fit$df.residual
 La desvianza resudial es la diferencia entre la desvianza del modelo estimado y la máxima desvianza del modelo ideal donde los valores predichos son iguales a los observados. Por lo tanto, si la diferencia es suficientemente pequeña, entonces la Bondad de ajuste no será significativa, indicando que el modelo se ajusta a los datos.
 
 ```{r}
-stats::pchisq(poisson_fit$deviance, poisson_fit$df.residual, lower.tail = FALSE)
+stats::pchisq(poisson_fit[["deviance"]], poisson_fit[["df.residual"]], lower.tail = FALSE)
 ```
 
 **Significación de la region**
@@ -257,9 +256,9 @@ stats::predict(poisson_fit, type = "response")
 
 ```{r}
 new <- tibble::tibble(
-  region = melanoma$region,
-  edad = melanoma$edad,
-  pop = base::mean(melanoma$pop)
+  region = melanoma[["region"]],
+  edad = melanoma[["edad"]],
+  pop = base::mean(melanoma[["pop"]])
 )
 stats::predict(
   object = poisson_fit,
@@ -275,8 +274,8 @@ stats::predict(
 
 ```{r, fig.align='center', out.width='70%'}
 tibble::tibble(
-  residuals = poisson_fit$residuals,
-  fitted_values = poisson_fit$fitted.values
+  residuals = poisson_fit[["residuals"]],
+  fitted_values = poisson_fit[["fitted.values"]]
 ) %>% 
   ggplot2::ggplot(
     ggplot2::aes(
@@ -299,8 +298,8 @@ tibble::tibble(
 
 ```{r, fig.align='center', out.width='70%'}
 tibble::tibble(
-  observed = melanoma$casos,
-  fitted_values = poisson_fit$fitted.values
+  observed = melanoma[["casos"]],
+  fitted_values = poisson_fit[["fitted.values"]]
 ) %>% 
   ggplot2::ggplot(
     ggplot2::aes(
