@@ -44,6 +44,7 @@ rpart:::summary.rpart(arbol)
 base::plot(arbol)
 graphics::text(arbol, pretty = 0L)
 
+rpart.plot::rpart.plot(arbol)
 
 base::plot(partykit::as.party(arbol))
 

@@ -25,7 +25,7 @@ arbol <- tree::tree(
   data = iris
 )
 
-
+# dev / (obs - leafs)
 base::summary(arbol)
 
 
@@ -51,15 +51,17 @@ tree::prune.tree(arbol)
 # e) ----------------------------------------------------------------------
 
 ## Utilizando la función cv.tree pode arbol e interprete el resultado.
-pruned_arbol <- tree::cv.tree(
+arbol_cv <- tree::cv.tree(
   object = arbol,
   FUN = prune.misclass
 )
 
-tree::prune.tree(
+arbol_pruned <- tree::prune.tree(
   tree = arbol,
-  best = 6
+  best = 4L
 )
+
+tree:::print.tree(arbol_pruned)
 
 
 # f) ----------------------------------------------------------------------
@@ -68,7 +70,9 @@ tree::prune.tree(
 ## evalúe la precisión con el conjunto de testeo.
 
 base::set.seed(2L)
-train <- base::sample(1L:base::nrow(iris), base::nrow(iris) / 2L)
+train <- base::sample(1L:base::nrow(iris), size = .75 * base::nrow(iris))
+
+base::length(train) / base::nrow(iris)
 
 # Construye data set de test
 iris_test <- iris[-train, ]
