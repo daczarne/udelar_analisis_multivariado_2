@@ -1,0 +1,348 @@
+---
+title: "Práctico 4"
+subtitle: "Ejercicio 2"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: show
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+    display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+    padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+    padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+  transform: scale(1.5);
+  transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+    border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+> Los datos en el archivo `melanoma.txt` corresponden al número de casos de melanoma registrados en Estados Unidos en el período 1969-1991 en hombres blancos clasificados por edad y región (`0 = Norte`, `1 = Sur`). La última columna es el tamaño de la población registrada en el censo de EE.UU.
+
+## Parte a
+
+> Codifique la variable categórica `edad`, tomando el grupo de menor edad como referencia.
+
+```{r}
+melanoma <- readr::read_delim(
+  file = here::here("Class notebooks/melanoma.txt"),
+  delim = "\t",
+  col_types = "cccc"
+) %>% 
+  dplyr::rename(
+    region = base::names(.)[1],
+    edad = Edad,
+    casos = Casos,
+    pop = base::names(.)[4]
+  ) %>% 
+  dplyr::mutate(
+    region = forcats::as_factor(base::as.integer(region)),
+    casos = base::as.integer(casos),
+    pop = base::as.integer(pop)
+  ) %>% 
+  dplyr::group_by(
+    region
+  ) %>% 
+  dplyr::mutate(
+    edad = dplyr::row_number() - 1,
+    edad = forcats::as_factor(edad)
+  ) %>% 
+  dplyr::ungroup()
+```
+
+```{r}
+melanoma
+```
+
+```{r, fig.align='center', out.width='70%'}
+melanoma %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = casos
+    )
+  ) +
+  ggplot2::geom_boxplot() +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    ),
+    legend.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='70%'}
+melanoma %>% 
+  dplyr::group_by(
+    region
+  ) %>% 
+  dplyr::summarise(
+    dplyr::across(
+      .cols = casos:pop,
+      .fns = ~base::sum(.x, na.rm = TRUE)
+    ),
+    .groups = "drop"
+  ) %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = region,
+      y = casos
+    )
+  ) +
+  ggplot2::geom_col() + 
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    ),
+    legend.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='70%'}
+melanoma %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = region,
+      y = casos,
+      fill = edad
+    )
+  ) +
+  ggplot2::geom_col(
+    position = "dodge"
+  ) + 
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    ),
+    legend.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Parte b
+
+> Construya un modelo de regresión de Poisson para estudiar la relación entre el número de casos de melanoma, la edad y la región, considerando la variable `Pop` como *offset*.
+
+```{r}
+base::summary(
+  poisson_fit <- stats::glm(
+    formula = casos ~ edad + region,
+    data = melanoma,
+    family = stats::poisson(link = "log"),
+    offset = base::log(pop)
+  )
+)
+```
+
+```{r}
+poisson_fit$deviance / poisson_fit$df.residual
+```
+
+## Parte c
+
+> Interprete la salida del modelo.
+
+**Bondad de ajuste**
+
+La desvianza resudial es la diferencia entre la desvianza del modelo estimado y la máxima desvianza del modelo ideal donde los valores predichos son iguales a los observados. Por lo tanto, si la diferencia es suficientemente pequeña, entonces la Bondad de ajuste no será significativa, indicando que el modelo se ajusta a los datos.
+
+```{r}
+stats::pchisq(poisson_fit$deviance, poisson_fit$df.residual, lower.tail = FALSE)
+```
+
+**Significación de la region**
+
+Para testear la significancia de la region podemos comparar la devianza del modelo completo con la desvianza del modelo que excluye la variable `region`.
+
+```{r}
+base::summary(reg_sig <- stats::update(poisson_fit, . ~ . - region))
+```
+
+```{r}
+stats::anova(poisson_fit, reg_sig, test = "Chisq")
+```
+
+**Interpretación de los coeficientes**
+
+```{r}
+base::exp(stats::coef(poisson_fit))
+```
+
+**Fitted values**
+
+```{r}
+stats::predict(poisson_fit, type = "response")
+```
+
+**Media marginal esperada para la población**
+
+```{r}
+new <- tibble::tibble(
+  region = melanoma$region,
+  edad = melanoma$edad,
+  pop = base::mean(melanoma$pop)
+)
+stats::predict(
+  object = poisson_fit,
+  newdata = new,
+  type = "response",
+  se.fit = TRUE
+)
+```
+
+## Parte d
+
+> Realice un gráfico en donde en el eje $x$ se presenten los residuos del modelo y en el eje $y$ los valores ajustados por el modelo. Interprete.
+
+```{r, fig.align='center', out.width='70%'}
+tibble::tibble(
+  residuals = poisson_fit$residuals,
+  fitted_values = poisson_fit$fitted.values
+) %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = residuals,
+      y = fitted_values
+    )
+  ) +
+  ggplot2::geom_point() +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Parte e
+
+> Realice un gráfico en donde en el eje $x$ se presenten los valores observados y en el eje $y$ los valores ajustados por el modelo. Interprete.
+
+```{r, fig.align='center', out.width='70%'}
+tibble::tibble(
+  observed = melanoma$casos,
+  fitted_values = poisson_fit$fitted.values
+) %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = observed,
+      y = fitted_values
+    )
+  ) +
+  ggplot2::geom_point() +
+  ggplot2::theme(
+    aspect.ratio = 1,
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Extra - Negative Binomial
+
+```{r}
+dplyr::summarise(
+  melanoma,
+  mean = base::mean(casos, na.rm = TRUE),
+  var = stats::var(casos, na.rm = TRUE),
+  .groups = "drop"
+)
+```
+
+```{r}
+base::summary(
+  nb_fit <- MASS::glm.nb(
+    formula = casos ~ edad + region,
+    data = melanoma,
+    link = log
+  )
+)
+```
+
+```{r}
+pscl::odTest(nb_fit)
+```
+
+```{r}
+AER::dispersiontest(poisson_fit)
+```

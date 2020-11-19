@@ -1,0 +1,392 @@
+---
+title: "Práctico 4"
+subtitle: "Ejercicio 2"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: show
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+    display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+    padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+    padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+  transform: scale(1.5);
+  transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+    border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr)
+```
+
+## Parte a
+
+> Lea el data-set `lowbwt.csv`. Verifique que todas las variables categóricas tengan la sintaxis correcta.
+
+```{r}
+lowbwt <- readr::read_csv2(
+  file = "lowbwt.csv"
+) %>% 
+  dplyr::rename_with(
+    .fn = tolower,
+    .cols = tidyselect::everything()
+  )
+```
+
+```{r}
+lobstr::obj_size(lowbwt)
+```
+
+```{r}
+tibble::tibble(
+  var_name = base::names(lowbwt),
+  var_type = purrr::map_chr(lowbwt, base::typeof),
+  var_class = purrr::map_chr(lowbwt, base::class),
+  obj_size = purrr::map_dbl(lowbwt, lobstr::obj_size)
+)
+```
+
+```{r}
+lowbwt %<>% 
+  dplyr::mutate(
+    id = base::as.integer(id),
+    low = forcats::as_factor(low),
+    age = base::as.integer(age),
+    lwt = base::as.integer(lwt),
+    race = forcats::as_factor(race),
+    smoke = forcats::as_factor(smoke),
+    ptl = base::as.integer(ptl),
+    ht = forcats::as_factor(ht),
+    ui = forcats::as_factor(ui),
+    ftv = base::as.integer(ftv),
+    bwt = base::as.integer(bwt)
+  )
+```
+
+```{r}
+lobstr::obj_size(lowbwt)
+```
+
+```{r}
+tibble::tibble(
+  var_name = base::names(lowbwt),
+  var_type = purrr::map_chr(lowbwt, base::typeof),
+  var_class = purrr::map_chr(lowbwt, base::class),
+  obj_size = purrr::map_dbl(lowbwt, lobstr::obj_size)
+) %>% 
+  dplyr::left_join(
+    dplyr::summarise(
+      lowbwt,
+      dplyr::across(
+        .cols = tidyselect:::where(is.factor),
+        .fns = ~base::length(base::levels(.x))
+      )
+    ) %>% 
+      tidyr::pivot_longer(
+        cols = tidyselect::everything(),
+        names_to = "var_name",
+        values_to = "fct_levels"
+      ),
+    by = "var_name"
+  ) %>% 
+  dplyr::relocate(
+    fct_levels,
+    .after = "var_class"
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+lowbwt %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = low
+    )
+  ) + 
+  ggplot2::geom_bar() +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='100%'}
+lowbwt %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = low,
+      fill = race
+    )
+  ) + 
+  ggplot2::geom_bar(
+    position = "dodge"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    ),
+    legend.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Parte b
+
+> Elimine las variables `id` (identificador) y `bwt` (peso del bebé en gramos) de la tabla de datos.
+
+```{r}
+lowbwt %<>% 
+  dplyr::select(
+    -id,
+    -bwt
+  )
+```
+
+## Parte c
+
+> Construya un modelo de regresión logística para estudiar la relación entre el bajo peso de los bebes y todas las variables medidas en las madres (excepto `id` y `bwt`). Interprete la salida del modelo.
+
+```{r}
+logit_fit <- stats::glm(low ~ ., data = lowbwt, family = stats::binomial(link = "logit"))
+```
+
+```{r}
+base::summary(logit_fit)
+```
+
+```{r}
+confusion_data <- tibble::tibble(
+  observed = logit_fit$y,
+  predicted = dplyr::if_else(stats::predict(logit_fit, type = "response") > 0.5, 1, 0)
+)
+```
+
+```{r}
+(confusion_matrix <- stats::xtabs(~observed + predicted, data = confusion_data))
+```
+
+```{r}
+confusion_matrix[1,1] / (confusion_matrix[1,1] + confusion_matrix[1,2])
+```
+
+```{r}
+confusion_matrix[2,2] / (confusion_matrix[2,1] + confusion_matrix[2,2])
+```
+Recordemos que:
+
+$$low_i = \left\{
+\begin{array}{rcl}
+0 & \text{si} & \text{peso al nacer del bebe } i \geq 2500 \\
+1 & \text{si} & \text{peso al nacer del bebe } i < 2500
+\end{array}
+\right.$$
+
+```{r}
+(error <- 1 - base::sum(base::diag(confusion_matrix)) / base::dim(lowbwt)[1])
+```
+
+Pero, ¿qué error estamos calculando?
+
+```{r}
+lowbwt %<>% 
+  dplyr::mutate(
+    row_number = dplyr::row_number()
+  )
+base::set.seed(12356789)
+train <- lowbwt %>% 
+  dplyr::slice_sample(
+    prop = 0.75
+  )
+lowbwt %<>% 
+  dplyr::mutate(
+    training = dplyr::if_else(row_number %in% train$row_number, TRUE, FALSE)
+  )
+```
+
+```{r}
+base::table(lowbwt$training)
+```
+
+```{r}
+logit_fit2 <- stats::glm(
+  formula = low ~ age + lwt + race + smoke + ptl + ht + ui + ftv,
+  data = lowbwt,
+  family = stats::binomial(link = "logit"),
+  subset = training
+)
+```
+
+```{r}
+base::summary(logit_fit2)
+```
+
+```{r}
+confusion_data_training <- tibble::tibble(
+  row_number = base::as.integer(base::names(logit_fit2$y)),
+  observed = logit_fit2$y,
+  predicted = dplyr::if_else(stats::predict(logit_fit2, lowbwt[lowbwt[["training"]] == TRUE,], type = "response") > 0.5, 1, 0)
+)
+```
+
+```{r}
+(confusion_matrix_training <- stats::xtabs(~observed + predicted, data = confusion_data_training))
+```
+
+```{r}
+(training_error <- 1 - base::sum(base::diag(confusion_matrix_training)) / base::sum(confusion_matrix_training))
+```
+
+```{r}
+confusion_data_test <- tibble::tibble(
+  row_number = lowbwt[lowbwt[["training"]] == FALSE, ][["row_number"]],
+  observed = lowbwt[lowbwt[["training"]] == FALSE, ][["low"]],
+  predicted = dplyr::if_else(stats::predict(logit_fit2, lowbwt[lowbwt[["training"]] == FALSE,], type = "response") > 0.5, 1, 0)
+)
+```
+
+```{r}
+(confusion_matrix_test <- stats::xtabs(~observed + predicted, data = confusion_data_test))
+```
+
+```{r}
+(test_error <- 1 - base::sum(base::diag(confusion_matrix_test)) / base::sum(confusion_matrix_test))
+```
+
+## Parte d
+
+> Utilizando el paquete `glmulti`, elija el mejor modelo según un criterio definido (por ejemplo, mínimo AIC).
+
+```{r}
+lowbwt %<>% 
+  dplyr::select(
+    -row_number,
+    -training
+  )
+```
+
+```{r}
+glmulti::glmulti(
+  y = low ~ .*.,
+  data = lowbwt,
+  family = binomial,
+  method = "d",
+  plotty = FALSE,
+  report = TRUE,
+  marginality = TRUE,
+  deltaB = 0,
+  deltaM = 0.01,
+  conseq = 6,
+  sexrate = 0.15,
+  imm = 0.2
+)
+```
+
+```{r, eval=FALSE}
+glm_fit3 <- glmulti::glmulti(
+  y = low ~ .*.,
+  data = lowbwt,
+  family = binomial,
+  method = "g",
+  plotty = FALSE,
+  report = TRUE,
+  marginality = TRUE,
+  deltaB = 0,
+  deltaM = 0.01,
+  conseq = 6,
+  sexrate = 0.15,
+  imm = 0.2
+)
+```
+
+```{r}
+glm_fit3@objects[[1]]
+```
+
+```{r}
+glm_fit4 <- stats::glm(
+  formula = low ~ 1 + smoke + ht + ui + age + lwt + ptl + ftv + ftv:age + smoke:lwt + ui:lwt + ui:ptl,
+  data = lowbwt,
+  family = stats::binomial(link = "logit")
+)
+```
+
+```{r}
+base::summary(glm_fit4)
+```
+
+```{r}
+base::exp(stats::coef(glm_fit4)) / (1 + base::exp(stats::coef(glm_fit4)))
+```
+
+
