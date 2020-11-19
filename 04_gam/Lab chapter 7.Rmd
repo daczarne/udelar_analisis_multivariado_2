@@ -1,0 +1,536 @@
+---
+title: "Chapter 7 - Labs"
+output: 
+  html_document:
+    # css: style_notebook.css
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: false
+    theme: flatly
+    highlight: tango
+    code_folding: show
+    mathjax: "default"
+    self_contained: true
+    keep_md: false
+---
+
+```{css, echo=FALSE}
+body {
+  background-color: #f5f5f5;
+}
+
+.title {
+  color: #4292c6;
+    display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.proof {
+  background-color: #f5f5f5;
+    padding: 5px;
+  margin-bottom: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.special {
+  display: inline-block;
+  font-size: 30px;
+  background-color: #e5f5e0;
+    padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  width: fit-content;
+  border-left: 3px solid #73AD21;
+  transition: all ease-in-out 2s;
+  animation: item-hover-off .5s;
+}
+
+.special:hover {
+  transform: scale(1.5);
+  transition: all 1s ease;
+}
+
+.row {
+  text-align: center;
+}
+
+.special-text{
+  display: inline-block;
+  text-align: center;
+}
+
+.selector{
+  width: 50%;
+  float: left;
+}
+
+blockquote {
+  background: #f9f9f9;
+    border-left-color: #1ca2c3;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = ""
+)
+library(magrittr, warn.conflicts = FALSE)
+```
+
+```{r}
+prediction_plot <- function(.data) {
+  
+  .data %>% 
+    ggplot2::ggplot() +
+    ggplot2::geom_point(
+      data = wage,
+      ggplot2::aes(
+        x = age,
+        y = wage
+      ),
+      alpha = 1/10
+    ) +
+    ggplot2::geom_line(
+      ggplot2::aes(
+        x = grid,
+        y = fitted
+      ),
+      color = "navyblue"
+    ) +
+    ggplot2::geom_line(
+      ggplot2::aes(
+        x = grid,
+        y = lower
+      ),
+      color = "dodgerblue",
+      linetype = "dashed"
+    ) +
+    ggplot2::geom_line(
+      ggplot2::aes(
+        x = grid,
+        y = upper
+      ),
+      color = "dodgerblue",
+      linetype = "dashed"
+    ) +
+    ggplot2::theme(
+      plot.background = ggplot2::element_rect(
+        fill = "#F5F5F5",
+        color = "#F5F5F5"
+      )
+    )
+  
+}
+```
+
+## The data
+
+```{r}
+wage <- ISLR::Wage
+```
+
+```{r}
+SmartEDA::ExpData(wage, type = 1)
+```
+
+```{r}
+SmartEDA::ExpData(wage, type = 2)
+```
+
+```{r, fig.align='center', out.width='70%'}
+ggplot2::ggplot(
+  data = wage,
+  ggplot2::aes(
+    wage
+  )
+) + 
+  ggplot2::geom_boxplot() +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='70%'}
+ggplot2::ggplot(
+  data = wage,
+  ggplot2::aes(
+    age
+  )
+) + 
+  ggplot2::geom_bar() +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+```{r, fig.align='center', out.width='70%'}
+ggplot2::ggplot(
+  data = wage,
+  ggplot2::aes(
+    x = age,
+    y = wage
+  )
+) + 
+  ggplot2::geom_point(
+    alpha = 1/10
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Polynomial regression
+
+**Continuous variable**
+
+```{r}
+base::summary(poly4_fit <- stats::lm(wage ~ stats::poly(age, degree = 4), data = wage))
+```
+
+```{r}
+age_grid <- base::seq(from = base::min(wage$age), to = base::max(wage$age))
+poly4_preds <- stats::predict(poly4_fit, newdata = base::list(age = age_grid), se = TRUE)
+poly4_se_bands <- base::cbind(poly4_preds[["fit"]] + 1.96 * poly4_preds[["se.fit"]], poly4_preds[["fit"]] - 1.96 * poly4_preds[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(poly4_se_bands) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = poly4_preds[["fit"]],
+    lower = V2
+  ) %>% 
+  prediction_plot()
+```
+
+**Discreet variable**
+
+```{r}
+base::summary(logit_fit <- stats::glm(base::I(wage > 250) ~ stats::poly(age, degree = 4), data = wage, family = binomial))
+```
+
+```{r}
+logit_preds <- stats::predict(logit_fit, newdata = base::list(age = age_grid), se = TRUE)
+pfit <- base::exp(logit_preds[["fit"]]) / (1 + base::exp(logit_preds[["fit"]]))
+logit_se_bands <- base::cbind(logit_preds[["fit"]] + 1.96 * logit_preds[["se.fit"]], logit_preds[["fit"]] - 1.96 * logit_preds[["se.fit"]])
+logit_se_bands <- base::exp(logit_se_bands) / (1 + base::exp(logit_se_bands))
+```
+
+```{r, fig.align='center', out.width='100%'}
+logit_se_bands %>%
+  tibble::as_tibble() %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = pfit,
+    lower = V2
+  ) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = grid,
+      y = fitted
+    ),
+    color = "navyblue"
+  ) +
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = grid,
+      y = lower
+    ),
+    color = "dodgerblue",
+    linetype = "dashed"
+  ) +
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = grid,
+      y = upper
+    ),
+    color = "dodgerblue",
+    linetype = "dashed"
+  ) +
+  ggplot2::labs(
+    x = "age",
+    y = "Pr(wage > 250 | age)\n"
+  ) +
+  ggplot2::ylim(
+    base::c(0, 0.2)
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+## Step function
+
+**Specifying number of breaks**
+
+```{r}
+base::cut(wage$age, breaks = 4)[1:10]
+```
+
+```{r}
+base::summary(step_fit <- stats::lm(wage ~ base::cut(age, breaks = 6), data = wage))
+```
+
+```{r}
+step_preds <- stats::predict(step_fit, newdata = base::list(age = age_grid), se = TRUE)
+step_se_bands <- base::cbind(step_preds[["fit"]] + 1.96 * step_preds[["se.fit"]], step_preds[["fit"]] - 1.96 * step_preds[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(step_se_bands) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = step_preds[["fit"]],
+    lower = V2
+  ) %>% 
+  prediction_plot()
+```
+
+**Specifying break values**
+
+```{r}
+base::summary(step_fit_br <- stats::lm(wage ~ base::cut(age, breaks = base::c(base::min(age), 30, 40, 50, 60, 70, base::max(age))), data = wage))
+```
+
+```{r}
+step_preds_br <- stats::predict(step_fit_br, newdata = base::list(age = age_grid), se = TRUE)
+step_se_bands_br <- base::cbind(step_preds_br[["fit"]] + 1.96 * step_preds_br[["se.fit"]], step_preds_br[["fit"]] - 1.96 * step_preds_br[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(step_se_bands_br) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = step_preds_br[["fit"]],
+    lower = V2
+  ) %>% 
+  prediction_plot()
+```
+
+## Splines
+
+### Basis functions
+
+**Specifying knots**
+
+```{r}
+splines::bs(wage$age, knots = base::c(25, 40, 60))[1:10,]
+```
+
+```{r}
+base::summary(bs_fit <- stats::lm(wage ~ splines::bs(age, knots = base::c(25, 40, 60)), data = wage))
+```
+
+```{r}
+bs_preds <- stats::predict(bs_fit, newdata = base::list(age = age_grid), se = TRUE)
+bs_se_bands <- base::cbind(bs_preds[["fit"]] + 1.96 * bs_preds[["se.fit"]], bs_preds[["fit"]] - 1.96 * bs_preds[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(bs_se_bands) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = bs_preds[["fit"]],
+    lower = V2
+  ) %>% 
+  prediction_plot()
+```
+
+**Specifying degrees of freedom**
+
+```{r}
+base::summary(spline_fit_df <- stats::lm(wage ~ splines::bs(age, df = 6), data = wage))
+```
+
+```{r}
+spline_preds_df <- stats::predict(spline_fit_df, newdata = base::list(age = age_grid), se = TRUE)
+spline_se_bands_df <- base::cbind(spline_preds_df[["fit"]] + 1.96 * spline_preds_df[["se.fit"]], spline_preds_df[["fit"]] - 1.96 * spline_preds_df[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(spline_se_bands_df) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = spline_preds_df[["fit"]],
+    lower = V2
+  ) %>% 
+  prediction_plot()
+```
+
+### Natural splines
+
+```{r}
+base::summary(ns_fit <- stats::lm(wage ~ splines::ns(age, df = 4), data = wage))
+```
+
+```{r}
+ns_preds <- stats::predict(ns_fit, newdata = base::list(age = age_grid), se = TRUE)
+ns_se_bands <- base::cbind(ns_preds[["fit"]] + 1.96 * ns_preds[["se.fit"]], ns_preds[["fit"]] - 1.96 * ns_preds[["se.fit"]])
+```
+
+```{r, fig.align='center', out.width='100%'}
+tibble::as_tibble(ns_se_bands) %>% 
+  dplyr::transmute(
+    grid = age_grid,
+    upper = V1,
+    fitted = ns_preds[["fit"]],
+    lower = V2
+  ) %>%
+  prediction_plot()
+```
+
+### Smoothing spline
+
+**Specifying degrees of freedom**
+
+```{r}
+ss_fit_df <- stats::smooth.spline(x = wage[["age"]], y = wage[["wage"]], df = 16)
+ss_fit_df
+```
+
+```{r}
+## Distinct x values in increasing order
+ss_fit_df$x
+## Fitted values for each value of x
+ss_fit_df$y
+## Weights used at the unique y values
+ss_fit_df$w
+```
+
+```{r}
+ss_fit_df$df
+base::sum(ss_fit_df$lev)
+ss_fit_df$lambda
+```
+
+```{r, fig.align='center', out.width='100%'}
+p <- tibble::tibble(
+  x = ss_fit_df$x,
+  y = ss_fit_df$y
+) %>% 
+  ggplot2::ggplot() +
+  ggplot2::geom_point(
+    data = wage,
+    ggplot2::aes(
+      x = age,
+      y = wage
+    ),
+    alpha = 1/10
+  ) +
+  ggplot2::geom_line(
+    ggplot2::aes(
+      x = x,
+      y = y
+    ),
+    color = "navyblue"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+p
+```
+
+**Finding lambda by LOOCV**
+
+```{r}
+ss_fit_cv <- stats::smooth.spline(x = wage$age, y = wage$wage, cv = TRUE)
+```
+
+```{r, fig.align='center', out.width='100%'}
+p +
+  ggplot2::geom_line(
+    data = tibble::tibble(
+      x = ss_fit_cv$x,
+      y = ss_fit_cv$y
+    ),
+    ggplot2::aes(
+      x = x,
+      y = y
+    ),
+    color = "red"
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
+### Local regression
+
+```{r}
+loess_fit <- stats::loess(wage ~ age, span = 0.2, data = wage)
+```
+
+```{r}
+stats::predict(loess_fit)[1:10]
+```
+
+```{r, fig.align='center', out.width='100%'}
+ggplot2::ggplot(
+  data = wage,
+  ggplot2::aes(
+    x = age,
+    y = wage
+  )
+) +
+  ggplot2::geom_point(
+    alpha = 1/10
+  ) +
+  ggplot2::geom_smooth(
+    method = "loess",
+    span = 0.1,
+    color = "blue",
+    se = FALSE
+  ) +
+  ggplot2::geom_smooth(
+    method = "loess",
+    span = 0.5,
+    color = "orange",
+    se = FALSE
+  ) + 
+  ggplot2::geom_smooth(
+    method = "loess",
+    span = 0.9,
+    color = "darkgreen",
+    se = FALSE
+  ) +
+  ggplot2::theme(
+    plot.background = ggplot2::element_rect(
+      fill = "#F5F5F5",
+      color = "#F5F5F5"
+    )
+  )
+```
+
