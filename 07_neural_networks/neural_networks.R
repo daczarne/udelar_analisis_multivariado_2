@@ -1,6 +1,6 @@
-#=======================#
-#### NEURAL NETWORKS ####
-#=======================#
+#=============#
+#### MNIST ####
+#=============#
 
 
 library(magrittr)
@@ -8,7 +8,7 @@ library(keras)
 library(tensorflow)
 
 
-# keras -------------------------------------------------------------------
+# Feature engineering -----------------------------------------------------
 
 
 # We are going to use the MNIST data set to build a Feedforward DNN. This dataset consists of 120.000 images of handwritten digits.
@@ -52,6 +52,9 @@ mnist_y <- keras::to_categorical(
 )
 
 
+# Model building ----------------------------------------------------------
+
+
 # Model:
 #   i. first we initialize a sequential model
 #   ii. we define two hidden (dense) layers. One with 128 nodes and one with 64
@@ -68,18 +71,39 @@ mnist_y <- keras::to_categorical(
 # ReLU: f(x) = max(0, x)
 # Sigmoid: f(x) = 1 / (1 + e^{-x})
 # Softmax: f(x) = e^{x} / sum(e^{x})
+
+# Backpropagation:
+# loss: loss function to measure performance
+#   regression: MSE
+#   classification: categorical cross entropy: CE = - log( e^s / sum(e^s) )
+# optimizer: controls how the backpropagation is implemented.
+# Usually rmsprop is used for mini-batch SGD. rmsprop stands for Root Mean Square Propagation
+#   lr: learning rate
+# other optimizers are available: adadelta, adagrad, adamax, sgd, etc
+# metrics: list of metrics to be measured and used to evaluate the model
+# kernel_regularizer: layer parameter regularization (conceptualy the same as with any other ML model). Can be L1, L2, or both
 mnist_model <- keras::keras_model_sequential() %>% 
   
   ## Network architecture
   keras::layer_dense(
-    units = 128,
-    input_shape = base::ncol(mnist_x),
-    activation = "relu"
+    units = 256,
+    input_shape = base::ncol(x = mnist_x),
+    activation = "relu",
+    kernel_regularizer = keras::regularizer_l2(l = 0.001)
   ) %>% 
+  keras::layer_batch_normalization() %>% # Re-normalize data after layer
+  keras::layer_dense(
+    units = 128,
+    activation = "relu",
+    kernel_regularizer = keras::regularizer_l2(l = 0.001)
+  ) %>% 
+  keras::layer_batch_normalization() %>% # Re-normalize data after layer
   keras::layer_dense(
     units = 64,
-    activation = "relu"
+    activation = "relu",
+    kernel_regularizer = keras::regularizer_l2(l = 0.001)
   ) %>% 
+  keras::layer_batch_normalization() %>% # Re-normalize data after layer
   keras::layer_dense(
     units = 10,
     activation = "softmax"
@@ -88,26 +112,108 @@ mnist_model <- keras::keras_model_sequential() %>%
   ## Backpropagation
   keras::compile(
     loss = "categorical_crossentropy",
-    optimizer = keras::optimizer_rmsprop(),
+    optimizer = keras::optimizer_adam(
+      lr = 0.001
+    ),
     metrics = base::c("accuracy")
   )
 
+
 mnist_model
 
-mnist_fit1 <- mnist_model %>%
+
+# Model traning -----------------------------------------------------------
+
+
+# We use the fit function to train our model
+# x and y specify the features and response of our model respectively
+# batch_size: the number of observations to run through the mini-batch SGD process
+# epochs: data is fed one batch at a time. An epoch is complete when the training algorithm has seen all data.
+#   The epochs arguments controls how many times the fitting process must see all data
+# validation_split: the proportion of the data to be withheld to estimate the out-of-sample error
+# callbacks: a list of model callbacks (ie, a way of adjusting parameters while the model is training)
+#     callback_early_stopping: will stop the training if after 5 epochs there's no loss improvement
+#     callback_reduce_lr_on_plateau: will reduce the optimizers learning rate if a plateau is reached
+mnist_fit <- mnist_model %>%
   keras::fit(
     x = mnist_x,
     y = mnist_y,
-    epochs = 25,
     batch_size = 128,
+    epochs = 25,
     validation_split = 0.2,
-    verbose = FALSE
+    callbacks = base::list(
+      keras::callback_early_stopping(
+        patience = 5
+      ),
+      keras::callback_reduce_lr_on_plateau(
+        factor = 0.05
+      )
+    ),
+    verbose = TRUE
   )
 
+# An object of class keras training history (a list of length 2)
+base::length(mnist_fit)
 
-mnist_fit1
 
-plot(mnist_fit1)
+# A list with model metrics 
+mnist_fit[["metrics"]]
+
+
+# A plot displaying loss and accuracy for training and validation
+mnist_training_history <- tibble::tibble(
+  epoch = 1:base::length(mnist_fit[["metrics"]][["loss"]]),
+  loss = mnist_fit[["metrics"]][["loss"]],
+  accuracy = mnist_fit[["metrics"]][["accuracy"]],
+  val_loss = mnist_fit[["metrics"]][["val_loss"]],
+  val_accuracy = mnist_fit[["metrics"]][["val_accuracy"]],
+  lr = mnist_fit[["metrics"]][["lr"]]
+)
+
+
+mnist_training_history %>%
+  tidyr::pivot_longer(
+    cols = -epoch,
+    names_to = "variable"
+  ) %>% 
+  dplyr::mutate(
+    var_type = dplyr::case_when(
+      variable %in% base::c("loss", "accuracy") ~ "training",
+      variable %in% base::c("val_loss", "val_accuracy") ~ "validation",
+      variable == "lr" ~ "lr"
+    ),
+    plot_type = dplyr::case_when(
+      variable %in% base::c("val_accuracy", "accuracy") ~ "accuracy",
+      variable %in% base::c("val_loss", "loss") ~ "loss",
+      variable == "lr" ~ "lr"
+    )
+  ) %>% 
+  ggplot2::ggplot(
+    ggplot2::aes(
+      x = epoch,
+      y  = value,
+      color = var_type
+    )
+  ) + 
+  ggplot2::geom_point(
+    alpha = 0.3
+  ) +
+  ggplot2::geom_line(
+    alpha =  0.3
+  ) +
+  ggplot2::geom_smooth(
+    se = FALSE
+  ) +
+  ggplot2::facet_wrap(
+    ~plot_type,
+    ncol = 1L,
+    scales = "free"
+  ) + 
+  ggplot2::labs(
+    y = NULL,
+    color = NULL
+  )
+
 
 #===============#
 #### THE END ####
