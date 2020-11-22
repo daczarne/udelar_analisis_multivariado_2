@@ -215,6 +215,27 @@ mnist_training_history %>%
   )
 
 
+# Prediction --------------------------------------------------------------
+
+
+predicted_labels <- keras::predict_classes(
+  object = mnist_model,
+  x = mnist[["test"]][["images"]] / 255
+)
+
+
+confusion_matrix <- base::table(
+  obs = mnist[["test"]][["labels"]],
+  pred = predicted_labels
+)
+
+
+confusion_matrix
+
+
+base::sum(base::diag(confusion_matrix)) / base::sum(confusion_matrix)
+
+
 #===============#
 #### THE END ####
 #===============#
