@@ -24,8 +24,8 @@ library(tensorflow)
 #     images: a matrix of 60.000 x 784. Each row corresponds to an image, each col to a pixel value
 #     labels: an integer vector of length 60.000 with the labels for each image
 #   test: a list of length 2
-#     images: a matrix of 60.000 x 784. Each row corresponds to an image, each col to a pixel value
-#     labels: an integer vector of length 60.000 with the labels for each image
+#     images: a matrix of 10.000 x 784. Each row corresponds to an image, each col to a pixel value
+#     labels: an integer vector of length 10.000 with the labels for each image
 mnist <- dslabs::read_mnist()
 
 # keras requires two separate objects as arguments, a matrix of covariates (X) and a one-hot matrix of responses (y) 
