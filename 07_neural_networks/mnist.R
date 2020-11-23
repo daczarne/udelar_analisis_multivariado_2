@@ -149,7 +149,7 @@ mnist_fit <- mnist_model %>%
         factor = 0.05
       )
     ),
-    verbose = TRUE
+    verbose = 2
   )
 
 # An object of class keras training history (a list of length 2)
