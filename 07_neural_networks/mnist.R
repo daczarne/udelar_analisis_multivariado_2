@@ -134,6 +134,8 @@ mnist_model
 # callbacks: a list of model callbacks (ie, a way of adjusting parameters while the model is training)
 #     callback_early_stopping: will stop the training if after 5 epochs there's no loss improvement
 #     callback_reduce_lr_on_plateau: will reduce the optimizers learning rate if a plateau is reached
+keras::tensorboard(log_dir = "logs")
+
 mnist_fit <- mnist_model %>%
   keras::fit(
     x = mnist_x,
@@ -147,10 +149,12 @@ mnist_fit <- mnist_model %>%
       ),
       keras::callback_reduce_lr_on_plateau(
         factor = 0.05
-      )
+      ),
+      keras::callback_tensorboard()
     ),
     verbose = 2
   )
+
 
 # An object of class keras training history (a list of length 2)
 base::length(mnist_fit)
