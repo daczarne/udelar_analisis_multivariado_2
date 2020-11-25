@@ -39,6 +39,29 @@ model_runs <- tfruns::tuning_run(
 )
 
 
+# Results -----------------------------------------------------------------
+
+
+# A dataframe with:
+#   run directory
+#   run metrics
+#   flag values
+#   epochs (defined and computed)
+#   etc
+utils::View(model_runs)
+
+
+tfruns::ls_runs(order = metric_val_accuracy)
+
+
+# We can get much detailed information with tfruns::view_run
+tfruns::view_run(run_dir = "07_neural_networks/runs/2020-11-25T02-37-54Z")
+
+
+# We can compare two runs
+tfruns::compare_runs()
+
+
 #===============#
 #### THE END ####
 #===============#
