@@ -48,8 +48,12 @@ model_runs <- tfruns::tuning_run(
 #   flag values
 #   epochs (defined and computed)
 #   etc
-utils::View(model_runs)
+View(model_runs)
 
+class(model_runs)
+
+
+tibble::as_tibble(model_runs)
 
 tfruns::ls_runs(order = metric_val_accuracy)
 

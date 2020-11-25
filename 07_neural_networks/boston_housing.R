@@ -15,10 +15,12 @@ library(tfdatasets)
 
 # A list of length 2:
 #   train: a list of length 2
-#     x: a matrix of 404 observations and 13 covariates for housing characteristics in Boston suburbes
+#     x: a matrix of 404 observations and 13 covariates for housing characteristics in Boston s
+#         uburbes
 #     y: a 1 dim array of length 404 with house prices in 1000s of US dollars
 #   test: a list of length 2
-#     x: a matrix of 102 observations and 13 covariates for housing characteristics in Boston suburbes
+#     x: a matrix of 102 observations and 13 covariates for housing characteristics in Boston 
+#         suburbes
 #     y: a 1 dim array of length 102 with house prices in 1000s of US dollars
 boston_housing <- keras::dataset_boston_housing()
 
@@ -100,8 +102,9 @@ output <- input %>%
     activation = "relu"
   ) %>%
   keras::layer_dense(
+    activation = "relu",
     units = 1
-  ) 
+  )
 
 boston_housing_model <- keras::keras_model(input, output)
 
