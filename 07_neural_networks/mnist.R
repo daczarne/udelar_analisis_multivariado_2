@@ -11,11 +11,11 @@ library(tensorflow)
 # Feature engineering -----------------------------------------------------
 
 
-# We are going to use the MNIST data set to build a Feedforward DNN. This dataset consists of 120.000 images of handwritten digits.
+# We are going to use the MNIST data set to build a Feedforward DNN. This dataset consists of 70.000 images of handwritten digits.
 # Each picture is a 28 x 28 pixel (784 pixels in total) and it's black and white only
 # Since the digits are black and white, each picture can be broken down to a vector of length 784 where each value corresponds to
 # the gray-scale value of that pixel (0: white, 255: black).
-# This data set has already been split into 60.000 pics for training and 60.000 pics for testing
+# This data set has already been split into 60.000 pics for training and 10.000 pics for testing
 
 #  The goal is to predict the hand-written digit (0 to 9)
 
@@ -31,6 +31,14 @@ mnist <- dslabs::read_mnist()
 # keras requires two separate objects as arguments, a matrix of covariates (X) and a one-hot matrix of responses (y) 
 mnist_x <- mnist[["train"]][["images"]]
 mnist_y <- mnist[["train"]][["labels"]]
+
+
+base::class(mnist_x)
+base::dim(mnist_x)
+
+
+base::class(mnist_y)
+base::length(mnist_y)
 
 
 # Rename columns and standardize feature values
@@ -137,6 +145,7 @@ mnist_model
 keras::tensorboard(
   log_dir = "07_neural_networks/logs/",
   action = base::c("start"),
+  host = "127.0.0.1",
   launch_browser = TRUE,
   reload_interval = 1
 )
@@ -159,7 +168,7 @@ mnist_fit <- mnist_model %>%
         log_dir = "07_neural_networks/logs/"
       )
     ),
-    verbose = 2
+    verbose = 0
   )
 
 
