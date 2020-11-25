@@ -42,3 +42,6 @@ vignettes/*.pdf
 07_neural_networks/kaggle.json
 07_neural_networks/logs
 07_neural_networks/runs
+
+# HDF5 file
+*.h5
