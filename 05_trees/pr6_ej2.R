@@ -55,6 +55,8 @@ base::plot(partykit::as.party(arbol))
 # xerror: estimates of the cross-validated prediction error for nsplit
 rpart::printcp(arbol)
 
+plot(rpart::printcp(arbol))
+
 
 # d) ----------------------------------------------------------------------
 
