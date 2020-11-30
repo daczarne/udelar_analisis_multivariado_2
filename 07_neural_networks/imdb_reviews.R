@@ -17,8 +17,8 @@ path <- paths[1]
 
 
 # The IMDB data set contains 64k reviews
-# text contains the actual review
-# tag contains the classification (pos/neg)
+#   text contains the actual review
+#   tag contains the classification (pos/neg)
 imdb_data <- readr::read_csv(path)
 
 # About half of the reviews are positive and half negative
@@ -27,30 +27,33 @@ imdb_data %>% dplyr::count(tag)
 
 # We'll use 80% of the set for training and 20% for testing
 training_id <- base::sample.int(base::nrow(imdb_data), size = base::nrow(imdb_data) * 0.8)
-training <- imdb_data[training_id,]
-testing <- imdb_data[-training_id,]
+training <- imdb_data[training_id, ]
+testing <- imdb_data[-training_id, ]
 
 
 # Feature engineering -----------------------------------------------------
 
 
-# Before we can feed the reviews into a network, we need to transform the reviews into tensors.
-# We'll represent each of the 10.000 most common words by an integer. Every review will be represented by a sequence of integers
-# Then we will pad the arrays (the tensors) so that they all have the same length
-# Next will build an integer tensor of shape 10.000 x 50 (where 50 is the maximum length that we'll permit)
-# We'll use an embedding layer that can handle this type of data as the first layer of our NN
+# Before we can feed the reviews into a network, we need to transform the reviews into 
+# tensors. We'll represent each of the 10.000 most common words by an integer. Every 
+# review will be represented by a sequence of integers. Then we will pad the arrays (the
+# tensors) so that they all have the same length. Next we'll build an integer tensor of
+# shape 10.000 x 50 (where 50 is the maximum length that we'll permit). We'll use an
+# embedding layer that can handle this type of data as the first layer of our NN.
 
 number_of_words <- 10000
 max_length <- 50
 
 # max_tokens: maximum size of the vocabulary for the layer
-# output_sequence_length: length of the output sequence (tensor shape will be batch_size x output_sequence_length)
+# output_sequence_length: length of the output sequence (tensor shape will be batch_size
+# x output_sequence_length)
 text_vectorization <- keras::layer_text_vectorization(
   max_tokens = number_of_words,
   output_sequence_length = max_length,
 )
 
 
+# keras::adapt() fits the state of the pre-processing layer to the data being passed
 text_vectorization %>% 
   keras::adapt(
     imdb_data[["text"]]
@@ -85,11 +88,12 @@ imdb_data[["text"]] %>%
 # Model building ----------------------------------------------------------
 
 
-# To sum-up: this model consists of an input layer made out of the indices for each word in the review and 
-# a output of 0 or 1
+# To sum-up: this model consists of an input layer made out of the indices for each word
+# in the review and an output of 0 or 1
 
 # Our first layer will generate an embedding
-# Embedding is the concept of mapping from discrete objects (such as words in our case) to vectors (or real numbers)
+# Embedding is the concept of mapping from discrete objects (such as words in our case) to
+# vectors (or real numbers)
 
 # The global_average_pooling_1d layer returns a fixed-length output vector for each review
 # This is achieved by averaging over the sequence dimension
@@ -97,10 +101,12 @@ imdb_data[["text"]] %>%
 
 # Next comes a dense layer of 16 neurons with ReLU activation
 # We add a layer dropout here
-# A dropout selects a random fraction of the input units to 0 at each update
-# There's no mathematical proof (at least that I know off) that this should work, but it does (a random forest-like situation)
+# A dropout sets a random fraction of the input units to 0 at each update
+# There's no mathematical proof (at least that I know of) that this should work, but it
+# does (a random forest-like situation)
 
-# The output layer is fully connected with 1 output layer (class predictions) with a sigmoid activation
+# The output layer is fully connected with 1 output unit (class predictions) with a
+# sigmoid activation
 
 input <- keras::layer_input(shape = base::c(1), dtype = "string")
 
@@ -127,10 +133,10 @@ model <- keras::keras_model(input, output)
 
 model %>% 
   keras::compile(
-  optimizer = 'adam',
-  loss = 'binary_crossentropy',
-  metrics = base::list('accuracy')
-)
+    optimizer = 'adam',
+    loss = 'binary_crossentropy',
+    metrics = base::list('accuracy')
+  )
 
 
 # Model training ----------------------------------------------------------
@@ -138,13 +144,13 @@ model %>%
 
 history <- model %>%
   keras::fit(
-  training[["text"]],
-  base::as.numeric(training[["tag"]] == "pos"),
-  epochs = 10,
-  batch_size = 512,
-  validation_split = 0.2,
-  verbose = 2
-)
+    training[["text"]],
+    base::as.numeric(training[["tag"]] == "pos"),
+    epochs = 15,
+    batch_size = 512,
+    validation_split = 0.2,
+    verbose = 2
+  )
 
 
 # Evaluate ----------------------------------------------------------------
@@ -153,9 +159,16 @@ history <- model %>%
 keras:::plot.keras_training_history(history)
 
 
-results <- model %>% keras::evaluate(testing[["text"]], base::as.numeric(testing[["tag"]] == "pos"), verbose = 1)
+# We can use keras::evaluate() to evaluate model performance
+results <- model %>%
+  keras::evaluate(
+    testing[["text"]],
+    base::as.numeric(testing[["tag"]] == "pos"),
+    verbose = 1
+  )
 results
 
+# Or we can build a confusion matrix
 confusion_matrix <- base::table(
   obs = testing[["tag"]],
   pred = dplyr::if_else(stats::predict(model, testing[["text"]]) > 0.5, "pos", "neg")
