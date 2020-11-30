@@ -70,7 +70,7 @@ base::table(iris_test[["Species"]], iris_pred_axed[["predictions"]])
 
 
 # Save the model object ---------------------------------------------------
-base::saveRDS(object = iris_rf_axed, file = "iris_model")
+base::saveRDS(object = iris_rf_axed, file = "08_model_sharing/iris_model.RDS")
 
 
 #===============#
