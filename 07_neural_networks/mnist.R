@@ -75,7 +75,7 @@ base::dim(mnist_y)
 
 # Model:
 #   i. first we initialize a sequential model
-#   ii. we define two hidden (dense) layers. One with 128 nodes and one with 64
+#   ii. we define three hidden (dense) layers. One with 128 nodes and one with 64
 #   iii. we define the output layer with 10 nodes (one for each class)
 # The input_shape specifies how many features the first hidden layer is going to receive. This
 # needs to be the same as features in our input matrix.
